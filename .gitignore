@@ -12,3 +12,10 @@ wheels/
 # Environment variables file
 .env
 .env.*
+
+
+# data for db cloning
+database/**/*.json
+database/**/*.gdb
+database/**/*.gpkg
+*.gpkg
