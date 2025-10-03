@@ -204,60 +204,54 @@ class VK:
             print(f"Error getting objects by date: {e}")
             raise
 
-    def update_objekt_id(
-        self, layer_name: str, fid: int, new_objekt_id: str
-    ) -> bool:
+    def update_objekt_id(self, layer_name: str, fid: int, new_objekt_id: str) -> None:
         """
-        Updates the objekt_id for a specific object in VK database.
+        Updates the objekt_id for a specific object in the VK database.
 
-        This is typically used after creating a new object in GeoFA to store
-        the GeoFA-generated UUID back into the VK database.
+        This is typically used after creating a new object in GeoFA to sync the
+        GeoFA-generated UUID back to the VK database.
 
         Args:
             layer_name (str): Name of the layer (e.g., 'GeoFA_5800_fac_pkt').
             fid (int): The feature ID (primary key) of the object to update.
-            new_objekt_id (str): The new objekt_id value (UUID from GeoFA).
-
-        Returns:
-            bool: True if update was successful, False otherwise.
+            new_objekt_id (str): The new objekt_id (UUID) to set.
 
         Examples:
-            # Update a single object with GeoFA-generated ID
-            vk.update_objekt_id('GeoFA_5800_fac_pkt', fid=845, new_objekt_id='abc123...')
+            # Update a specific object's GeoFA ID
+            vk.update_objekt_id('GeoFA_5800_fac_pkt', fid=123, new_objekt_id='abc-def-123')
 
-            # Typical sync workflow:
-            vk_obj = vk.get_layer('GeoFA_5800_fac_pkt').iloc[0]
-            fid = vk_obj.name  # The index is the fid
-            gfa_id = geofa.create_object(temakode=5800, geometry=vk_obj.geometry)
-            vk.update_objekt_id('GeoFA_5800_fac_pkt', fid, gfa_id)
+            # Typical sync workflow
+            vk_obj = vk.get_layer('GeoFA_5800_fac_pkt').iloc[0]  # Get object
+            fid = vk_obj.name  # Get the fid (index)
+            gfa_id = geofa.create_object(...)  # Create in GeoFA, get UUID
+            vk.update_objekt_id('GeoFA_5800_fac_pkt', fid, gfa_id)  # Sync back to VK
         """
         try:
-            # Read the current layer
-            gdf = gpd.read_file(
-                self.config.db_path, layer=layer_name, driver=self.config.driver
-            )
+            # Read the entire layer
+            gdf = gpd.read_file(self.config.db_path, layer=layer_name)
 
-            # Find the row with matching fid (index)
+            # Check if fid exists
             if fid not in gdf.index:
-                print(f"Error: fid {fid} not found in layer '{layer_name}'")
-                return False
+                raise ValueError(
+                    f"FID {fid} not found in layer '{layer_name}'. "
+                    f"Valid range: 0 to {len(gdf)-1}"
+                )
 
-            # Update the objekt_id
+            # Update the objekt_id for the specific row
             gdf.loc[fid, "objekt_id"] = new_objekt_id
 
-            # Write back to the database
+            # Write back to the database (overwrites the layer)
             gdf.to_file(
                 self.config.db_path, layer=layer_name, driver=self.config.driver
             )
 
             print(
-                f"Successfully updated objekt_id for fid={fid} in '{layer_name}' to '{new_objekt_id}'"
+                f"Updated objekt_id for FID {fid} in '{layer_name}' to: {new_objekt_id}"
             )
-            return True
 
         except Exception as e:
             print(f"Error updating objekt_id: {e}")
-            return False
+            raise
 
     def close(self):
         """Closes the database connection."""
