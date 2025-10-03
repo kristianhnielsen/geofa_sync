@@ -21,6 +21,13 @@ def clone_geofa_database(output_path: str | None = None):
         for layer in layers:
             gdf = gpd.read_file(gpkg_file, layer=layer)
 
-            gdf.to_file(output_file, layer=layer, driver="GPKG")
+            # Use a unique layer name based on the source file
+            # Extract layer name from filename: 5800_fac_pkt, 5801_fac_fl, 5802_fac_li
+            layer_name = os.path.basename(gpkg_file).replace(".gpkg", "")
+
+            print(
+                f"Cloning {len(gdf)} features to layer '{layer_name}' in {output_file}"
+            )
+            gdf.to_file(output_file, layer=layer_name, driver="GPKG")
 
     print(f"All layers cloned to: {output_file}")
