@@ -260,6 +260,162 @@ class VK:
             print(f"Error updating objekt_id: {e}")
             raise
 
+    def create_dummy_object(
+        self,
+        temakode: int,
+        geometry,
+        navn: str = "Test Object",
+        clear_objekt_id: bool = True,
+        oprettet: Optional[datetime] = None,
+    ) -> int:
+        """
+        Creates a new dummy/test object in the VK database.
+
+        This is useful for testing sync workflows without modifying real data.
+        The object is created with minimal required fields and can optionally
+        have its objekt_id cleared to simulate a new object needing sync.
+
+        Args:
+            temakode (int): The theme code (5800=point, 5801=polygon, 5802=line).
+            geometry: Shapely geometry object (Point, Polygon, or LineString).
+            navn (str): Name for the test object. Defaults to "Test Object".
+            clear_objekt_id (bool): If True, sets objekt_id to empty string to simulate
+                a new object that needs GeoFA ID. If False, generates a temporary UUID.
+                Defaults to True.
+            oprettet (Optional[datetime]): The creation date for the object. If None,
+                uses the current timestamp. Defaults to None.
+
+        Returns:
+            int: The FID (feature ID) of the newly created object.
+
+        Examples:
+            # Create a test point without GeoFA ID (for testing sync)
+            from shapely.geometry import Point
+            fid = vk.create_dummy_object(5800, Point(10.0, 55.0))
+
+            # Create a test polygon with temporary ID
+            from shapely.geometry import Polygon
+            fid = vk.create_dummy_object(
+                5801,
+                Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),
+                navn="Test Area",
+                clear_objekt_id=False
+            )
+
+            # Create a test line for sync testing
+            from shapely.geometry import LineString
+            fid = vk.create_dummy_object(
+                5802,
+                LineString([(0, 0), (1, 1), (2, 0)]),
+                navn="Test Route"
+            )
+
+            # Create object with specific creation date
+            fid = vk.create_dummy_object(
+                5800,
+                Point(10.0, 55.0),
+                navn="Old Object",
+                oprettet=make_datetime(2023, 1, 15)
+            )
+        """
+        import uuid
+        from datetime import datetime
+
+        try:
+            # Determine layer name based on temakode
+            if temakode == 5800:
+                layer_name = "GeoFA_5800_fac_pkt"
+                temanavn = "Friluftsliv facilitet - punkt"
+            elif temakode == 5801:
+                layer_name = "GeoFA_5801_fac_fl"
+                temanavn = "Friluftsliv facilitet - flade"
+            elif temakode == 5802:
+                layer_name = "GeoFA_5802_fac_li"
+                temanavn = "Friluftsliv facilitet - linje"
+            else:
+                raise ValueError(
+                    f"Invalid temakode: {temakode}. Must be 5800, 5801, or 5802."
+                )
+
+            # Read existing layer to get schema
+            gdf = gpd.read_file(self.config.db_path, layer=layer_name)
+
+            # Create new row with minimal required fields
+            now_utc = pd.Timestamp.now("UTC")
+
+            # Use provided oprettet date or default to now
+            oprettet_date = oprettet if oprettet is not None else now_utc
+            # Convert to pandas Timestamp if it's a datetime
+            if isinstance(oprettet_date, datetime):
+                oprettet_date = pd.Timestamp(oprettet_date)
+
+            new_row = {
+                "temakode": temakode,
+                "temanavn": temanavn,
+                "objekt_id": "" if clear_objekt_id else str(uuid.uuid4()),
+                "versions_id": str(uuid.uuid4()),
+                "systid_fra": now_utc,
+                "systid_til": pd.NaT,
+                "oprettet": oprettet_date,
+                "cvr_kode": 29189900,  # Vejle Kommune CVR
+                "cvr_navn": "Vejle Kommune",
+                "kommunekode": 575,  # Vejle
+                "bruger_id": "test_user",
+                "oprindkode": 1,
+                "oprindelse": "Vejle Kommune",
+                "statuskode": 3,
+                "status": "Endelig",
+                "off_kode": 1,
+                "offentlig": "Ja",
+                "noegle": None,
+                "note": f"Test object created at {now_utc}",
+                "navn": navn,
+                "geometry": geometry,
+            }
+
+            # Create GeoDataFrame for the new row
+            new_gdf = gpd.GeoDataFrame([new_row], crs=gdf.crs)
+
+            # Match dtypes to avoid issues
+            for col in new_gdf.columns:
+                if col in gdf.columns and col != "geometry":
+                    try:
+                        new_gdf[col] = new_gdf[col].astype(
+                            gdf[col].dtype, errors="ignore"
+                        )
+                    except:
+                        pass
+
+            # Append to existing data
+            combined = pd.concat([gdf, new_gdf], ignore_index=True)
+            combined_gdf = gpd.GeoDataFrame(combined, crs=gdf.crs)
+
+            # Write back to database
+            combined_gdf.to_file(
+                self.config.db_path, layer=layer_name, driver=self.config.driver
+            )
+
+            # The new FID is the last index
+            new_fid = len(gdf)  # 0-indexed, so this is the next available index
+
+            objekt_status = (
+                "without objekt_id"
+                if clear_objekt_id
+                else f"with objekt_id: {new_row['objekt_id']}"
+            )
+            print(
+                f"Created dummy object in '{layer_name}' {objekt_status}\n"
+                f"  FID: {new_fid}\n"
+                f"  Name: {navn}\n"
+                f"  Temakode: {temakode}"
+            )
+
+            return new_fid
+
+        except Exception as e:
+            print(f"Error creating dummy object: {e}")
+            raise
+
     def close(self):
         """Closes the database connection."""
         if self.engine:
