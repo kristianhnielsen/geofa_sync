@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 import geopandas as gpd
@@ -13,16 +12,7 @@ from shapely.geometry import (
     MultiPolygon,
 )
 
-
-@dataclass
-class DatabaseConfig:
-    """Configuration for GeoFA database connection."""
-
-    db_path: str
-    """Path to the GeoPackage database file."""
-
-    driver: str = "GPKG"
-    """Database driver (default: GPKG for GeoPackage)."""
+from .utils import DatabaseConfig
 
 
 class GeoFA:
@@ -165,7 +155,7 @@ class GeoFA:
         """Closes the database connection."""
         if self.engine:
             self.engine.dispose()
-            print("Database connection closed.")
+            print("GeoFA Database connection closed.")
 
     def __enter__(self):
         """Context manager entry point."""
