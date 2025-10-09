@@ -1,10 +1,11 @@
-from dataclasses import dataclass
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 import geopandas as gpd
 from typing import Optional, Union
 from datetime import datetime
 import pandas as pd
+
+from .utils import DatabaseConfig
 
 
 def make_datetime(
@@ -42,17 +43,6 @@ def make_datetime(
     return datetime(
         year, month, day, hour, minute, second, tzinfo=pd.Timestamp.now("UTC").tzinfo
     )
-
-
-@dataclass
-class DatabaseConfig:
-    """Configuration for VK database connection."""
-
-    db_path: str
-    """Path to the GeoPackage database file."""
-
-    driver: str = "GPKG"
-    """Database driver (default: GPKG for GeoPackage)."""
 
 
 class VK:
@@ -150,10 +140,25 @@ class VK:
             layers_to_query = [layer_name] if layer_name else all_layers
 
             # Ensure datetimes are timezone-aware (UTC)
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=pd.Timestamp.now("UTC").tzinfo)
-            if end is not None and end.tzinfo is None:
-                end = end.replace(tzinfo=pd.Timestamp.now("UTC").tzinfo)
+            start = (
+                make_datetime(
+                    start.year,
+                    start.month,
+                    start.day,
+                    start.hour,
+                    start.minute,
+                    start.second,
+                )
+                if start is not None
+                else start
+            )
+            end = (
+                make_datetime(
+                    end.year, end.month, end.day, end.hour, end.minute, end.second
+                )
+                if end is not None
+                else end
+            )
 
             # Build filter description for logging
             if end is None:
@@ -176,7 +181,9 @@ class VK:
                         filtered = gdf[gdf["oprettet"] >= start]
                     else:
                         filtered = gdf[
-                            (gdf["oprettet"] >= start) & (gdf["oprettet"] <= end)
+                            (gdf["oprettet"] >= start)
+                            & (gdf["oprettet"] <= end)
+                            & (gdf["cvr_kode"] == 29189900)
                         ]
 
                     if len(filtered) > 0:
@@ -257,7 +264,7 @@ class VK:
         """Closes the database connection."""
         if self.engine:
             self.engine.dispose()
-            print("Database connection closed.")
+            print("VK Database connection closed.")
 
     def __enter__(self):
         """Context manager entry point."""
@@ -293,7 +300,7 @@ if __name__ == "__main__":
         print("Test 2: Get Objects Created Since Date (using helper)")
         print("=" * 60)
 
-        since_date = make_datetime(2024, 6, 1)
+        since_date = make_datetime(2022, 6, 1)
         print(f"\nSearching for objects created since: {since_date}")
         recent_objects = vk.get_objects_by_date(since_date)
 
