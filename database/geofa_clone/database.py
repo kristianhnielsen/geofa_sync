@@ -5,9 +5,9 @@ import os
 
 def clone_geofa_database(output_path: str | None = None):
     geofa_gpkg_files = [
-        r"database\geofa_clone\data\5800_fac_pkt.gpkg",
-        r"database\geofa_clone\data\5801_fac_fl.gpkg",
-        r"database\geofa_clone\data\5802_fac_li.gpkg",
+        r"data_test\geofa\5800_fac_pkt.gpkg",
+        r"data_test\geofa\5801_fac_fl.gpkg",
+        r"data_test\geofa\5802_fac_li.gpkg",
     ]
     output_file = output_path if output_path else "geofa.gpkg"
 

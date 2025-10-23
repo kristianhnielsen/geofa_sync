@@ -19,3 +19,5 @@ database/**/*.json
 database/**/*.gdb
 database/**/*.gpkg
 *.gpkg
+
+data_test/*

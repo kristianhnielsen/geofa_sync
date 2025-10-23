@@ -89,11 +89,11 @@ if __name__ == "__main__":
 
     config = GeodatabaseClonerConfig(
         schema_files=[
-            r"database\vk_clone\schema\geofa_5800_fac_pkt.json",
-            r"database\vk_clone\schema\geofa_5801_fac_fl.json",
-            r"database\vk_clone\schema\geofa_5802_fac_li.json",
+            r"data_test\vk\schema\geofa_5800_fac_pkt.json",
+            r"data_test\vk\schema\geofa_5801_fac_fl.json",
+            r"data_test\vk\schema\geofa_5802_fac_li.json",
         ],
-        gdb_path=r"database\vk_clone\friluftslivs.gdb",
+        gdb_path=r"data_test\vk\friluftslivs.gdb",
         output_path=r"vk.gpkg",
     )
 
